@@ -15,7 +15,6 @@ class WalletBalance(APIView):
         except Wallet.DoesNotExist:
             raise Http404
 
-
     def get(self, request, pk):
         wallet = self.get_object(pk)
         serializer = WalletSerializer(wallet)
@@ -26,25 +25,23 @@ class CreditWallet(APIView):
     def credit_wallet(self, wallet, request):
         payload=request.data
         
-        wallet.transactionId = payload.get('transactionId')
-        wallet.version = wallet.version + 1
-        wallet.coins = wallet.coins + payload.get('coins')
+        wallet.coins += payload.get('coins')
+        wallet.save()
         return wallet
 
 
     def post(self, request, pk):
-        payload=request.data
         
         wallet = Wallet.objects.filter(pk=pk).first()
 
         if wallet is None:
             wallet, created = Wallet.objects.update_or_create(
-            id=pk, defaults={'transactionId': payload.get('transactionId'), 'version': 1, 'coins': payload.get('coins') },
+            id=pk, defaults={'coins': 0 },
             )
  
-        wallet = self.credit_wallet(wallet, request)
+        credited_wallet = self.credit_wallet(wallet, request)
 
-        serializer = WalletSerializer(wallet)
+        serializer = WalletSerializer(credited_wallet)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -58,39 +55,38 @@ class DebitWallet(APIView):
             raise Http404
 
 
-    def debit_wallet(self, wallet, request):
-        payload=request.data
-
-        if check_for_negative_balance(wallet, request):
-            return "Insufficient funds"
-        else:
-            wallet.transactionId = payload.get('transactionId')
-            wallet.version = wallet.version + 1
-            wallet.coins = wallet.coins - payload.get('coins')
-            wallet.save()
-        return wallet
-
-
     def post(self, request, pk):
 
         wallet = self.get_object(pk)
         serializer = WalletSerializer(wallet)
 
-        if wallet and check_for_negative_balance(wallet, request):
+        if wallet and self.overdrawn(wallet, request):
             return Response(serializer.data, status=status.HTTP_400_BAD_REQUEST)
             
         wallet = self.debit_wallet(wallet, request)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    
+    def overdrawn(self, wallet, request):
+        payload=request.data
+
+        current_balance = wallet.coins
+        debit_request = payload.get('coins')
+
+        if current_balance - debit_request < 0:
+            return True
+        return False
+
+
+    def debit_wallet(self, wallet, request):
+        payload=request.data
+        
+        wallet.coins = wallet.coins - payload.get('coins')
+        wallet.save()
+        return wallet
+    
 
 
 
-def check_for_negative_balance(wallet, request):
-    payload=request.data
 
-    currentBalance = wallet.coins
-    debitRequest = payload.get('coins')
 
-    if currentBalance - debitRequest < 0:
-        return True
-    return False
