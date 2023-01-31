@@ -56,12 +56,13 @@ class DebitWallet(APIView):
 
 
     def post(self, request, pk):
+        payload=request.data
 
         wallet = self.get_object(pk)
         serializer = WalletSerializer(wallet)
 
         if wallet and self.overdrawn(wallet, request):
-            return Response(serializer.data, status=status.HTTP_400_BAD_REQUEST)
+            return Response(f"You don't have enough coins in your wallet to debit {payload.get('coins')}", status=status.HTTP_400_BAD_REQUEST)
             
         wallet = self.debit_wallet(wallet, request)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
