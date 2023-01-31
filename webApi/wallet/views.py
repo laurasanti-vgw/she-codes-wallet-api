@@ -36,7 +36,7 @@ class CreditWallet(APIView):
 
         if wallet is None:
             wallet, created = Wallet.objects.update_or_create(
-            id=pk, defaults={'coins': 0 },
+            id=pk, defaults={'coins': 0}
             )
  
         credited_wallet = self.credit_wallet(wallet, request)
