@@ -14,6 +14,8 @@
 
 4) Create virtual environment
 
+`pip3 install virtualenv`
+
 `virtualenv env`
 
 5) Activate virtual environment
